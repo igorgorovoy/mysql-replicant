@@ -1,5 +1,6 @@
 - hosts: master:slave
   user: vagrant
+  become: true
   tasks:
   - name: Install MySQL Server
     apt: name=mysql-server state=latest update_cache=yes
@@ -86,6 +87,7 @@
 
 - hosts: slave
   user: vagrant
+  become: true
   tasks:
   - name: Modify configuration file to setup server ID
     lineinfile: dest=/etc/mysql/mysql.conf.d/mysqld.cnf regexp="^#server-id" line="server-id=2"
@@ -106,22 +108,9 @@
 #  - name: Setup replication
 #    command: /usr/bin/mysql -uroot -e "CHANGE MASTER TO master_host='192.168.10.2', master_user='repl', master_password='s3cr3tPaSSwordR', master_use_gtid=current_pos"
 
-#  - name: Setup replication
-#    mysql_replication:
-#      mode: changemaster
-#      master_user: repl
-#      master_password: s3cr3tPaSSwordR
-#      master_host: 192.168.10.2
-##      master_log_file: mysql-bin.000009
-##      master_log_pos: current_pos
-#      login_unix_socket: /var/run/mysqld/mysqld.sock
-
-  - name: Restart mysql service
-    service: name=mysql state=restarted
-
-  - name: Get master binlog file name and binlog position
+  - name: Setup replication
     mysql_replication:
-      mode: getmaster
+      mode: changemaster
       master_user: repl
       master_password: s3cr3tPaSSwordR
       master_host: 192.168.10.2
@@ -129,6 +118,20 @@
 ##      master_log_pos: current_pos
       login_unix_socket: /var/run/mysqld/mysqld.sock
 
+  - name: Restart mysql service
+    service: name=mysql state=restarted
+
+#  - name: Get master binlog file name and binlog position
+#    mysql_replication:
+#      mode: getmaster
+#      master_user: repl
+#      master_password: s3cr3tPaSSwordR
+#      master_host: 192.168.10.2
+##      master_log_file: mysql-bin.000009
+##      master_log_pos: current_pos
+#      login_unix_socket: /var/run/mysqld/mysqld.sock
+
 #  - name: Check slave status
 #    mysql_replication:
 #      mode: getslave
+#      become: true
