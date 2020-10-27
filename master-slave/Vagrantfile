@@ -16,7 +16,7 @@ VAGRANTFILE_API_VERSION = "2"
     slave.vm.network "private_network", ip: "192.168.10.3"               
   end
   config.vm.provider "virtualbox" do |v|
-    v.memory = 1024
+    v.memory = 512
     v.cpus = 1
   end
 end

@@ -81,22 +81,9 @@
 #  - name: Setup replication
 #    command: /usr/bin/mysql -uroot -e "CHANGE MASTER TO master_host='192.168.10.2', master_user='repl', master_password='s3cr3tPaSSwordR', master_use_gtid=current_pos"
 
-  - name: Setup replication
-    mysql_replication:
-      mode: changemaster
-      master_user: repl
-      master_password: s3cr3tPaSSwordR
-      master_host: 192.168.10.2
-##      master_log_file: mysql-bin.000009
-##      master_log_pos: current_pos
-      login_unix_socket: /var/run/mysqld/mysqld.sock
-
-  - name: Restart mysql service
-    service: name=mysql state=restarted
-
-#  - name: Get master binlog file name and binlog position
+#  - name: Setup replication
 #    mysql_replication:
-#      mode: getmaster
+#      mode: changemaster
 #      master_user: repl
 #      master_password: s3cr3tPaSSwordR
 #      master_host: 192.168.10.2
@@ -104,7 +91,31 @@
 ##      master_log_pos: current_pos
 #      login_unix_socket: /var/run/mysqld/mysqld.sock
 
-#  - name: Check slave status
-#    mysql_replication:
-#      mode: getslave
-#      become: true
+  - name: Restart mysql service
+    service: name=mysql state=restarted
+
+  - name: Get master binlog file name and binlog position
+    mysql_replication:
+      mode: getmaster
+      master_user: repl
+      master_password: s3cr3tPaSSwordR
+      master_host: 192.168.10.2
+##      master_log_file: mysql-bin.000009
+##      master_log_pos: current_pos
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+
+#  - name: "Ansible | List all known variables and facts"
+#    debug:
+#      var: hostvars[inventory_hostname]
+
+#  - name: Check master_log_file master_log_pos
+#    debug:
+#      msg: |
+#        The master_log_file  is {{ master_log_file }}
+#        The master_log_pos is {{ master_log_pos }}
+
+  - name: Check slave status
+    mysql_replication:
+      mode: getslave
+      login_unix_socket: /var/run/mysqld/mysqld.sock

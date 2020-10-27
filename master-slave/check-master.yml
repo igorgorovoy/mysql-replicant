@@ -1,0 +1,17 @@
+- hosts: slave
+  user: vagrant
+  become: true
+  tasks:
+
+  - name: Get master binlog file name and binlog position
+    mysql_replication:
+      mode: getmaster
+      master_user: repl
+      master_password: s3cr3tPaSSwordR
+      master_host: 192.168.10.2
+#      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  - name: Check slave status
+    mysql_replication:
+      mode: getslave
+#      become: true
