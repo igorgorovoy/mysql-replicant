@@ -6,8 +6,8 @@
   vars_files:
     - ./vars/external_vars.yml
   tasks:
-  - name: Debug
-    debug: msg={{ replication_password }}
+#  - name: Debug
+#    debug: msg={{ replication_password }}
 
   - name: Install MySQL Server
     apt: name=mysql-server state=latest update_cache=yes
@@ -19,6 +19,7 @@
     apt: name=python3-mysqldb state=latest update_cache=yes
 
   - name: Make sure pymysql is present
+#    become: true # needed if the other tasks are not played as root
     pip:
       name: pymysql
       state: present
@@ -34,18 +35,18 @@
 
   - name: Create replication account
     mysql_user: 
-      name: {{ replication_user }}
+      name: {{ 
       host: "%" 
-      password: {{ replication_password }}  
+      password: s3cr3tPaSSwordR 
       priv: "*.*:REPLICATION SLAVE" 
       state: present 
       login_unix_socket: /var/run/mysqld/mysqld.sock 
 
   - name: Create readwrite user
     mysql_user: 
-      name: {{ rw_user }}
+      name: rwuser 
       host: "%" 
-      password: {{ rw_user_password }} 
+      password: s3cr3tPaSSwordR 
       priv: "*.*:SELECT,INSERT,UPDATE,DELETE,CREATE,DROP" 
       state: present 
       login_unix_socket: /var/run/mysqld/mysqld.sock 
@@ -67,7 +68,7 @@
       path: /etc/mysql/mysql.conf.d/mysqld.cnf
       block: |
         log_bin = /var/log/mysql/mysql-bin.log
-        binlog_do_db = {{ repl_db }}
+        binlog_do_db = newdatabase
 
   - name: Restart mysql service
     service: name=mysql state=restarted
@@ -89,18 +90,21 @@
       path: /etc/mysql/mysql.conf.d/mysqld.cnf
       block: |
         log_bin = /var/log/mysql/mysql-bin.log
-        binlog_do_db = {{ repl_db }}
+        binlog_do_db = newdatabase
         relay-log = /var/log/mysql/mysql-relay-bin.log
 
   - name: Restart mysql service
     service: name=mysql state=restarted
   
+#  - name: Setup replication
+#    command: /usr/bin/mysql -uroot -e "CHANGE MASTER TO master_host='192.168.10.2', master_user='repl', master_password='s3cr3tPaSSwordR', master_use_gtid=current_pos"
+
   - name: Setup replication
     mysql_replication:
       mode: changemaster
-      master_user: {{ replication_user }}
-      master_password: {{ replication_password }}
-      master_host: {{ master_host }}
+      master_user: repl
+      master_password: s3cr3tPaSSwordR
+      master_host: 192.168.192.21
 ##      master_log_file: mysql-bin.000009
 ##      master_log_pos: current_pos
       login_unix_socket: /var/run/mysqld/mysqld.sock
@@ -111,10 +115,23 @@
   - name: Get master binlog file name and binlog position
     mysql_replication:
       mode: getmaster
-      master_user: {{ replication_user }}
-      master_password: {{ replication_password }}
-      master_host: {{ master_host }}
+      master_user: repl
+      master_password: s3cr3tPaSSwordR
+      master_host: 192.168.192.21
+##      master_log_file: mysql-bin.000009
+##      master_log_pos: current_pos
       login_unix_socket: /var/run/mysqld/mysqld.sock
+
+
+#  - name: "Ansible | List all known variables and facts"
+#    debug:
+#      var: hostvars[inventory_hostname]
+
+#  - name: Check master_log_file master_log_pos
+#    debug:
+#      msg: |
+#        The master_log_file  is {{ master_log_file }}
+#        The master_log_pos is {{ master_log_pos }}
 
   - name: Check slave status
     mysql_replication:
