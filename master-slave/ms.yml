@@ -3,8 +3,12 @@
   become: true
   vars:
     ansible_python_interpreter: /usr/bin/python3
-
+  vars_files:
+    - ./vars/external_vars.yml
   tasks:
+  - name: Debug
+    debug: msg={{ replication_password }}
+
   - name: Install MySQL Server
     apt: name=mysql-server state=latest update_cache=yes
 
