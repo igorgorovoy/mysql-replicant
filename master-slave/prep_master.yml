@@ -1,0 +1,127 @@
+
+- hosts: master
+  user: vagrant
+  become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  vars_files:
+    - ./vars/external_vars.yml
+  tasks:
+  - name: Install MySQL Server
+    apt: name=mysql-server state=latest update_cache=yes
+
+  - name: Install pip3
+    apt: name=python3-pip state=latest update_cache=yes
+
+  - name: Install python3-mysqldb
+    apt: name=python3-mysqldb state=latest update_cache=yes
+
+  - name: Make sure pymysql is present
+    pip:
+      name: pymysql
+      state: present
+
+  - name: Install percona-xtrabackup
+    apt: name=percona-xtrabackup state=latest update_cache=yes
+
+  - name: Set root user password
+    mysql_user:
+      name: root
+      host: "%"
+      password: "{{ root_password }}"
+      check_implicit_admin: yes
+      state: present
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  - name: Create replication account
+    mysql_user: 
+      name: "{{ replication_user }}"
+      host: "%" 
+      password: "{{ replication_password }}"
+      priv: "*.*:REPLICATION SLAVE" 
+      state: present 
+      login_unix_socket: /var/run/mysqld/mysqld.sock 
+
+  - name: Create readwrite user
+    mysql_user: 
+      name: "{{ rw_user }}"
+      host: "%" 
+      password: "{{ rw_user_password }}"
+      priv: "*.*:SELECT,INSERT,UPDATE,DELETE,CREATE,DROP" 
+      state: present 
+      login_unix_socket: /var/run/mysqld/mysqld.sock 
+
+  - name: Modify configuration file to listen on all interfaces
+    lineinfile: dest=/etc/mysql/mysql.conf.d/mysqld.cnf regexp="^bind-address" line="bind-address=0.0.0.0"
+
+- hosts: master
+  user: vagrant
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  vars_files:
+    - ./vars/external_vars.yml
+  tasks:
+  - name: Modify configuration file to setup server ID
+    lineinfile: dest=/etc/mysql/mysql.conf.d/mysqld.cnf regexp="^#server-id" line="server-id=1"
+
+  - name: Define bin log db and path 
+    blockinfile:
+      path: /etc/mysql/mysql.conf.d/mysqld.cnf
+      block: |
+        log_bin = /var/log/mysql/mysql-bin.log
+        binlog_do_db = {{ repl_db }}
+
+  - name: Restart mysql service
+    service: name=mysql state=restarted
+
+  - name: Reset master binlog
+    command: /usr/bin/mysql -u root -e "RESET MASTER"
+
+  - name: create temporary backup directory on master
+    tempfile:
+      state: directory
+      prefix: ansible-
+      suffix: .mysqlslave
+    register: backupdir
+
+  - name: dump database from master
+    shell: >-
+      innobackupex --no-timestamp {{ backupdir.path }}/dump 2>&1 | tail -n 1
+    register: innobackupex
+    failed_when: '"completed OK!" not in innobackupex.stdout'
+  
+  - name: apply log to database dump
+    shell: >-
+      innobackupex --apply-log {{ backupdir.path }}/dump 2>&1 | tail -n 1
+    register: apply_log
+    failed_when: '"completed OK!" not in apply_log.stdout'
+    
+  - name: compress database dump
+    archive:
+      path: "{{ backupdir.path }}/dump/"
+      dest: "{{ backupdir.path }}/dump.tar.gz"
+      format: gz
+      owner: root
+      group: root
+      mode: 0600
+      remove: true
+    
+  - name: create temporary directory on localhost
+    delegate_to: localhost
+    tempfile:
+      state: directory
+      prefix: ansible-
+      suffix: .mysqlslave
+    register: local_tmp
+    
+  - name: download database dump from master
+    fetch:
+      src: "{{ backupdir.path }}/dump.tar.gz"
+      dest: "{{ local_tmp.path }}/"
+      flat: true
+    
+#  - name: remove database dump from master
+#    file:
+#      path: "{{ backupdir.path }}"
+#      state: absent
+
