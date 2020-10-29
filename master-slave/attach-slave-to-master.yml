@@ -77,11 +77,10 @@
     copy:
       src: "/tmp/dump.tar.gz"
       dest: "/tmp/"
-#      flat: true
 
   - name: Uncompress database dump
     unarchive:
-      src: "{/tmp/dump.tar.gz"
+      src: "/tmp/dump.tar.gz"
       dest: /var/lib/mysql
       owner: mysql
       group: mysql
@@ -94,7 +93,7 @@
   - name: Get binlog file
     command: >-
       sed -r 's/^(.*)\s[0-9]+$/\1/'
-      /var/lib/mysql/xtrabackup_binlog_pos_innodb
+      /var/lib/mysql/xtrabackup_binlog_info
     args:
         warn: false
     register: binlog_file
@@ -102,7 +101,7 @@
   - name: Get binlog position
     command: >-
       sed -r 's/^.*\s([0-9]+)$/\1/'
-      /var/lib/mysql/xtrabackup_binlog_pos_innodb
+      /var/lib/mysql/xtrabackup_binlog_info
     args:
       warn: false
     register: binlog_position

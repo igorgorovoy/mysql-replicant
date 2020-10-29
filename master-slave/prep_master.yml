@@ -117,7 +117,7 @@
   - name: download database dump from master
     fetch:
       src: "{{ backupdir.path }}/dump.tar.gz"
-      dest: "{{ local_tmp.path }}/"
+      dest: "/tmp/"
       flat: true
     
 #  - name: remove database dump from master
